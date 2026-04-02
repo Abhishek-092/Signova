@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Signova</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <!-- Google Fonts: Orbitron & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="translate.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .about-container {
+            max-width: 900px;
+            margin: 6rem auto;
+            padding: 2rem;
+            z-index: 10;
+        }
+        .about-card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+        }
+        .about-card:hover {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+        }
+        .about-card h3 {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--neon-green);
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .about-card ul {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .about-card li {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #cbd5e1;
+        }
+        .about-card li i {
+            color: var(--neon-green);
+            width: 18px;
+            height: 18px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particles-bg"></canvas>
+    
+    <div class="app-layout landing-layout">
+        <header class="top-bar glass-panel flex-gap justify-between" style="position: absolute; top: 1.5rem; left: 1.5rem; right: 1.5rem; z-index: 10;">
+            <div class="logo">
+                <span class="orbitron neon-text"><i data-lucide="radio"></i> SIGNOVA</span>
+            </div>
+            <nav class="top-controls flex-gap">
+                <a href="index.html" class="orbitron neon-text" style="text-decoration: none; font-size: 0.9rem;">HOME</a>
+                <a href="translate.html" class="orbitron neon-text" style="text-decoration: none; font-size: 0.9rem;">ENTER SYSTEM</a>
+            </nav>
+        </header>
+
+        <div class="about-container">
+            <h1 class="orbitron neon-text title-large mb-6" style="text-align: center;">ABOUT THE SYSTEM</h1>
+            
+            <div class="about-card pulse-glow">
+                <h3><i data-lucide="globe"></i> Project Overview</h3>
+                <p class="text-gray-300" style="font-size: 1.1rem; line-height: 1.6;">
+                    Signova is a real-time sign language communication platform using computer vision and speech processing.
+                </p>
+            </div>
+
+            <div class="about-card">
+                <h3><i data-lucide="layers"></i> Features</h3>
+                <ul>
+                    <li><i data-lucide="check-circle"></i> Gesture recognition</li>
+                    <li><i data-lucide="check-circle"></i> Voice-to-text</li>
+                    <li><i data-lucide="check-circle"></i> Text-to-speech</li>
+                    <li><i data-lucide="check-circle"></i> Chat integration</li>
+                </ul>
+            </div>
+
+            <div class="about-card">
+                <h3><i data-lucide="cpu"></i> Technology</h3>
+                <ul>
+                    <li><i data-lucide="code"></i> MediaPipe Hands</li>
+                    <li><i data-lucide="mic"></i> Web Speech API</li>
+                    <li><i data-lucide="monitor"></i> HTML/CSS/JS</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Particle Background Script -->
+    <script>
+        const canvas = document.getElementById('particles-bg');
+        const ctx = canvas.getContext('2d');
+        let particlesArray;
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        class Particle {
+            constructor(x, y, directionX, directionY, size, color) {
+                this.x = x;
+                this.y = y;
+                this.directionX = directionX;
+                this.directionY = directionY;
+                this.size = size;
+                this.color = color;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
+                ctx.fillStyle = '#22c55e';
+                ctx.fill();
+            }
+            update() {
+                if (this.x > canvas.width || this.x < 0) this.directionX = -this.directionX;
+                if (this.y > canvas.height || this.y < 0) this.directionY = -this.directionY;
+                this.x += this.directionX;
+                this.y += this.directionY;
+                this.draw();
+            }
+        }
+
+        function init() {
+            particlesArray = [];
+            let numberOfParticles = (canvas.height * canvas.width) / 20000;
+            for (let i = 0; i < numberOfParticles; i++) {
+                let size = (Math.random() * 2) + 1;
+                let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
+                let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
+                let directionX = (Math.random() * 1) - 0.5;
+                let directionY = (Math.random() * 1) - 0.5;
+                let color = '#22c55e';
+                particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, innerWidth, innerHeight);
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+            }
+        }
+        init();
+        animate();
+
+        window.addEventListener('resize', () => {
+            canvas.width = innerWidth;
+            canvas.height = innerHeight;
+            init();
+        });
+        
+        lucide.createIcons();
+    </script>
+</body>
+</html>
