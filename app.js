@@ -335,29 +335,47 @@ if (window.SpeechRecognition || window.webkitSpeechRecognition) {
     speechRecognition = new SpeechRecognitionAPI();
     speechRecognition.continuous = true;
     speechRecognition.interimResults = true;
+    speechRecognition.lang = 'en-US';
     
     speechRecognition.onresult = (event) => {
-        let interim = '';
-        let final = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) final += event.results[i][0].transcript;
-            else interim += event.results[i][0].transcript;
+        let transcript = "";
+        let finalTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript;
+            }
         }
-        
-        if (final) {
-            addChatMessage('voice', `[Transcription]: ${final}`);
-            showInterim(""); 
-        } else {
-            showInterim(interim);
+
+        // Update input box dynamically
+        if (chatInput) {
+            chatInput.value = transcript;
+        }
+
+        // Commit final transcript to chat
+        if (finalTranscript.trim() !== '') {
+            addChatMessage('voice', `[Transcription]: ${finalTranscript.trim()}`);
+            if (chatInput) chatInput.value = '';
         }
     };
     
     speechRecognition.onstart = () => showInterim("Standby for vocal input...");
     
+    speechRecognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        if (event.error === 'not-allowed') {
+            isListening = false;
+            if (toggleVoiceText) toggleVoiceText.checked = false;
+            showInterim("Microphone access denied. Please allow permissions.");
+        }
+    };
+    
     speechRecognition.onend = () => {
-        showInterim(""); 
         if (toggleVoiceText && toggleVoiceText.checked && isListening) {
             try { speechRecognition.start(); } catch(e) {}
+        } else {
+            showInterim(""); 
         }
     };
 } else {
