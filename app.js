@@ -67,6 +67,20 @@ const BUFFER_SIZE = 10;
 const buffers = { Left: [], Right: [] };
 const stableGestures = { Left: "", Right: "" };
 
+const wristHistory = { Left: [], Right: [] };
+
+function isHandWaving(handLabel, wristX) {
+    const hist = wristHistory[handLabel];
+    hist.push(wristX);
+    if (hist.length > 15) hist.shift();
+    
+    if (hist.length < 10) return false;
+    const minX = Math.min(...hist);
+    const maxX = Math.max(...hist);
+    // Return true if hand moved left-to-right by at least 4% of the screen
+    return (maxX - minX) > 0.04;
+}
+
 function setHandOutput(handStr, text, isPhrase = false) {
     const el = handStr === 'Left' ? leftHandOutput : rightHandOutput;
     if (el) {
@@ -243,7 +257,11 @@ const getGesture = (landmarks, handedness) => {
     }
     
     if (indexExt && middleExt && ringExt && pinkyExt) {
-        if (thumbExtended) return "BYE"; // open hand with thumb
+        if (thumbExtended) {
+            // Check for lateral waving movement
+            const waving = isHandWaving(handedness, landmarks[0].x);
+            return waving ? "BYE" : "HELLO"; 
+        }
         return "B"; 
     } else if (indexExt && middleExt && ringExt && !pinkyExt) {
         return "HAPPY"; // 'W' shape
