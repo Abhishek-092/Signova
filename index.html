@@ -7,6 +7,7 @@
     <!-- Google Fonts: Orbitron & Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
     <canvas id="particles-bg"></canvas>
@@ -18,16 +19,16 @@
             
             <div class="features-grid mb-8 text-left">
                 <div class="feature-item">
-                    <span class="neon-icon">⏺</span> Client-Side Processing
+                    <span class="neon-icon"><i data-lucide="cpu"></i></span> Client-Side Processing
                 </div>
                 <div class="feature-item">
-                    <span class="neon-icon">⚡</span> Zero Latency
+                    <span class="neon-icon"><i data-lucide="zap"></i></span> Zero Latency
                 </div>
                 <div class="feature-item">
-                    <span class="neon-icon">🗣️</span> Voice Output
+                    <span class="neon-icon"><i data-lucide="volume-2"></i></span> Voice Output
                 </div>
                 <div class="feature-item">
-                    <span class="neon-icon">✋</span> 21-Point Tracking
+                    <span class="neon-icon"><i data-lucide="hand"></i></span> 21-Point Tracking
                 </div>
             </div>
 
@@ -99,6 +100,9 @@
             canvas.height = innerHeight;
             init();
         });
+        
+        // Initialize SVGs
+        lucide.createIcons();
     </script>
 </body>
 </html>
