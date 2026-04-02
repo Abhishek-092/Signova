@@ -95,13 +95,18 @@ canvas {
 /* 🔤 OUTPUT */
 .output {
   text-align: center;
-  font-size: 60px;
+  font-size: 70px;
   font-family: 'Poppins';
   margin-top: 20px;
   color: #22c55e;
-  text-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
-  transition: all 0.25s ease;
 
+  animation: glowPulse 2s infinite;
+}
+
+@keyframes glowPulse {
+  0% { text-shadow: 0 0 10px #22c55e; }
+  50% { text-shadow: 0 0 30px #4ade80; }
+  100% { text-shadow: 0 0 10px #22c55e; }
 }
 
 /* 🎛 CONTROLS */
