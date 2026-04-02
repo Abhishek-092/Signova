@@ -96,7 +96,12 @@ hands.onResults((results) => {
     // ✅ UPDATE OUTPUT
     if (stableGesture !== lastGesture && stableGesture !== "...") {
       lastGesture = stableGesture;
-      output.innerText = stableGesture;
+            output.style.opacity = 0;
+
+      setTimeout(() => {
+        output.innerText = stableGesture;
+        output.style.opacity = 1;
+      }, 150);
 
       // 🔊 AUTO SPEAK
       if (stableGesture !== lastSpoken) {
