@@ -330,6 +330,21 @@ function showInterim(text) {
     }
 }
 
+function addMessageToChat(text) {
+    if (!text || text.trim() === '') return;
+    if (!chatHistory) return;
+    
+    const msg = document.createElement('div');
+    msg.className = 'chat-message me'; // Ensure styling matches user message
+    msg.innerText = text;
+    
+    chatHistory.appendChild(msg);
+    if(interimMsg && interimMsg.parentNode === chatHistory) {
+         chatHistory.appendChild(interimMsg); // Keep interim marker at end
+    }
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+
 if (window.SpeechRecognition || window.webkitSpeechRecognition) {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     speechRecognition = new SpeechRecognitionAPI();
@@ -338,41 +353,50 @@ if (window.SpeechRecognition || window.webkitSpeechRecognition) {
     speechRecognition.lang = 'en-US';
     
     speechRecognition.onresult = (event) => {
-        let transcript = "";
+        let interimTranscript = "";
         let finalTranscript = "";
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
             if (event.results[i].isFinal) {
                 finalTranscript += event.results[i][0].transcript;
+            } else {
+                interimTranscript += event.results[i][0].transcript;
             }
         }
 
-        // Update input box dynamically
+        // Show live spoken words in input field
         if (chatInput) {
-            chatInput.value = transcript;
+            chatInput.value = finalTranscript + interimTranscript;
         }
 
-        // Commit final transcript to chat
+        // Add final transcript to chat
         if (finalTranscript.trim() !== '') {
-            addChatMessage('voice', `[User]: ${finalTranscript.trim()}`);
-            if (chatInput) chatInput.value = '';
+            addMessageToChat(finalTranscript.trim());
+            if (chatInput) {
+                chatInput.value = interimTranscript; // Keep any ongoing interim text
+            }
         }
     };
     
-    speechRecognition.onstart = () => showInterim("Standby for vocal input...");
+    speechRecognition.onstart = () => showInterim("Listening for voice...");
     
     speechRecognition.onerror = (event) => {
         console.error("Speech recognition error:", event.error);
         if (event.error === 'not-allowed') {
             isListening = false;
             if (toggleVoiceText) toggleVoiceText.checked = false;
+            const label = toggleVoiceText?.closest('.cyber-toggle')?.querySelector('.toggle-label');
+            if (label) {
+                label.innerHTML = 'Voice &rarr; Text';
+                label.classList.remove('neon-text');
+                label.style.textShadow = '';
+            }
             showInterim("Microphone access denied. Please allow permissions.");
         }
     };
     
     speechRecognition.onend = () => {
-        if (toggleVoiceText && toggleVoiceText.checked && isListening) {
+        if (isListening && toggleVoiceText && toggleVoiceText.checked) {
             try { speechRecognition.start(); } catch(e) {}
         } else {
             showInterim(""); 
@@ -386,10 +410,24 @@ function updateSTTState() {
     if (!toggleVoiceText || !speechRecognition) return;
     
     isListening = toggleVoiceText.checked;
+    const label = toggleVoiceText.closest('.cyber-toggle')?.querySelector('.toggle-label');
+    
     if (isListening) {
+        if (label) {
+            label.innerHTML = 'Listening...';
+            label.classList.add('neon-text');
+            label.style.textShadow = '0 0 10px #4ade80, 0 0 20px #4ade80';
+        }
         try { speechRecognition.start(); } catch(e) {}
     } else {
+        if (label) {
+            label.innerHTML = 'Voice &rarr; Text';
+            label.classList.remove('neon-text');
+            label.style.textShadow = '';
+        }
         try { speechRecognition.stop(); } catch(e) {}
+        showInterim(""); // Clear "Standby..."
+        if (chatInput) chatInput.value = ''; // Clear partial input
     }
 }
 
