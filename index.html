@@ -1,23 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Signova</title>
     <link rel="icon" type="image/png" href="logo.png">
     <!-- Google Fonts: Orbitron & Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Orbitron:wght@500;700;900&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
+
 <body>
     <canvas id="particles-bg"></canvas>
-    
+
     <div class="landing-container">
         <div class="glass-panel text-center pulse-glow">
             <h1 class="orbitron neon-text title-large">SIGNOVA</h1>
             <p class="subtitle mb-6 text-gray-300">Real-Time Sign Language Translation via Computer Vision</p>
-            
+
             <div class="features-grid mb-8 text-left">
                 <div class="feature-item">
                     <span class="neon-icon"><i data-lucide="cpu"></i></span> Client-Side Processing
@@ -101,9 +105,10 @@
             canvas.height = innerHeight;
             init();
         });
-        
+
         // Initialize SVGs
         lucide.createIcons();
     </script>
 </body>
+
 </html>

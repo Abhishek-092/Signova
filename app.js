@@ -355,7 +355,7 @@ if (window.SpeechRecognition || window.webkitSpeechRecognition) {
 
         // Commit final transcript to chat
         if (finalTranscript.trim() !== '') {
-            addChatMessage('voice', `[Transcription]: ${finalTranscript.trim()}`);
+            addChatMessage('voice', `[User]: ${finalTranscript.trim()}`);
             if (chatInput) chatInput.value = '';
         }
     };
