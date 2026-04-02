@@ -117,3 +117,9 @@ canvas {
   box-shadow: 0 0 20px #22c55e;
   transform: scale(1.05);
 }
+
+.confidence {
+  text-align: center;
+  margin-top: 10px;
+  color: #94a3b8;
+}
