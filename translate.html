@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Signova Live</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <!-- MediaPipe -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <link rel="stylesheet" href="translate.css" />
+</head>
+<body>
+
+  <!-- 🔝 TOP BAR -->
+  <div class="topbar">
+    <div class="logo">Sign<span>ova</span> Live</div>
+    <div class="status">● Camera Active</div>
+    <a href="index.html" class="exit-btn">Exit</a>
+  </div>
+
+  <!-- 🎬 MAIN SECTION -->
+  <div class="main">
+
+    <!-- LEFT: YOUR CAMERA -->
+    <div class="video-box">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+      <span class="label">You</span>
+    </div>
+
+    <!-- RIGHT: FAKE CALL -->
+    <div class="video-box">
+      <video src="https://www.w3schools.com/html/mov_bbb.mp4" autoplay loop muted></video>
+      <span class="label">Remote User</span>
+    </div>
+
+  </div>
+
+  <!-- 🔤 OUTPUT -->
+  <div class="output" id="output">...</div>
+
+  <!-- 🎛 CONTROLS -->
+  <div class="controls">
+    <button onclick="speak()">🔊 Speak</button>
+    <button onclick="pauseCam()">⏸ Pause</button>
+    <button onclick="resetText()">🔄 Reset</button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
