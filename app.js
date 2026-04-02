@@ -2,9 +2,13 @@ const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const output = document.getElementById("output");
+let lastGesture = "...";
+let gestureBuffer = [];
+const BUFFER_SIZE = 10;   // frames to observe
 
 canvas.width = 420;
 canvas.height = 280;
+
 
 // 🎥 CAMERA START
 navigator.mediaDevices.getUserMedia({ video: true })
