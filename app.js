@@ -6,6 +6,8 @@ let lastGesture = "...";
 let gestureBuffer = [];
 const BUFFER_SIZE = 10;   // frames to observe
 let lastSpoken = "";
+const confidenceValue = Math.round((counts[stableGesture] / BUFFER_SIZE) * 100);
+document.getElementById("confidence").innerText = "Confidence: " + confidenceValue + "%";
 
 canvas.width = 420;
 canvas.height = 280;
