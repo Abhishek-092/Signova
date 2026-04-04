@@ -580,13 +580,13 @@ function addChatMessage(sender, text, isVoice = false) {
         // When a sentence is finalised, commit it to chat
         if (final.trim()) {
             addChatMessage('me', final.trim(), true);
-            showInterim('🎤 Listening...');
+            showInterim(' Listening...');
         }
     };
 
     speechRecognition.onstart = () => {
         console.log("STT Stream Started");
-        showInterim('🎤 Listening...');
+        showInterim(' Listening...');
     };
 
     speechRecognition.onerror = (event) => {
