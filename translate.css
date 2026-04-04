@@ -1,11 +1,4 @@
-/* ================================================
-   SIGNOVA COMMLINK — PREMIUM SYMMETRIC LAYOUT
-   Layout: Header | [2x2 Feeds Grid | Chat Sidebar] | Footer
-   Each feed column has: Video (top) + Trans (bottom)
-   Symmetry ensures videos and translation panels align perfectly.
-   ================================================ */
 
-/* ---------- Core Layout ---------- */
 .app-layout {
     display: flex;
     flex-direction: column;
