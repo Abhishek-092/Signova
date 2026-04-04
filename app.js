@@ -561,7 +561,7 @@ function addChatMessage(sender, text, isVoice = false) {
     speechRecognition.interimResults = true;
     speechRecognition.lang = 'en-US';
 
-    // Live results: interim goes to captions, final goes to chat
+    // Live results: interim goes to input field, final goes to chat
     speechRecognition.onresult = (event) => {
         let interim = '';
         let final = '';
@@ -572,21 +572,22 @@ function addChatMessage(sender, text, isVoice = false) {
                 interim += event.results[i][0].transcript;
             }
         }
-        // Show interim live in captions overlay both locally and for the peer
+        
         if (interim) {
-            showLiveCaptions(interim, true, false);
+            if (chatInput) chatInput.value = interim;
+            console.log("Transcript: " + interim);
             syncMessageToPeer(interim, 'voice_interim');
         }
-        // When a sentence is finalised, commit it to chat
+        
         if (final.trim()) {
+            if (chatInput) chatInput.value = '';
             addChatMessage('me', final.trim(), true);
-            showInterim(' Listening...');
+            console.log("Transcript: " + final.trim());
         }
     };
 
     speechRecognition.onstart = () => {
-        console.log("STT Stream Started");
-        showInterim(' Listening...');
+        console.log("Voice recognition started");
     };
 
     speechRecognition.onerror = (event) => {
@@ -607,6 +608,7 @@ function addChatMessage(sender, text, isVoice = false) {
         if (isListening && toggleVoiceText && toggleVoiceText.checked) {
             try { speechRecognition.start(); } catch(e) {}
         } else {
+            console.log("Voice recognition stopped");
             showInterim('');
             // Fade out captions when stopped
             const cap = document.getElementById('local-captions');
@@ -635,6 +637,7 @@ function updateSTTState() {
             label.style.textShadow = '';
         }
         try { speechRecognition.stop(); } catch(e) {}
+        if (chatInput) chatInput.value = '';
         showInterim('');
         const cap = document.getElementById('local-captions');
         if (cap) cap.classList.remove('active');
