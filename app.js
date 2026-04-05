@@ -900,46 +900,88 @@ function setListening(value) {
 
 // Wire up events only when API is available
 if (speechRecognition) {
+
+    // ── Buffers & timers ──────────────────────────────────────────────────────
+    let finalBuffer    = '';   // accumulates isFinal segments
+    let speechPauseTimer = null; // commits text after silence
+
+    // Flush whatever is buffered into the chat stream
+    function flushToChat() {
+        clearTimeout(speechPauseTimer);
+        speechPauseTimer = null;
+
+        // Prefer finalBuffer; fall back to whatever is live in the input box
+        const toSend = (finalBuffer || (chatInput ? chatInput.value : '')).trim();
+        finalBuffer = '';
+
+        if (toSend) {
+            if (chatInput) chatInput.value = '';
+            addChatMessage('me', toSend, true);
+            console.log('[Signova] Transcript committed to chat:', toSend);
+        }
+    }
+
+    // Start the pause countdown (resets on every new speech event)
+    function armPauseTimer() {
+        clearTimeout(speechPauseTimer);
+        speechPauseTimer = setTimeout(flushToChat, 1500);
+    }
+
+    // ── onresult ─────────────────────────────────────────────────────────────
     speechRecognition.onresult = (event) => {
         let interim = '';
-        let final = '';
+
         for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            console.log('[Signova] Transcript:', transcript,
+                        '| isFinal:', event.results[i].isFinal);
+
             if (event.results[i].isFinal) {
-                final += event.results[i][0].transcript;
+                finalBuffer += transcript + ' ';
+                console.log('[Signova] Final buffer:', finalBuffer);
             } else {
-                interim += event.results[i][0].transcript;
+                interim += transcript;
             }
         }
 
+        // Always reset the silence timer on new speech
+        armPauseTimer();
+
         if (interim) {
+            // Show live typing in the input field
             if (chatInput) chatInput.value = interim;
             syncMessageToPeer(interim, 'voice_interim');
         }
 
-        if (final.trim()) {
-            if (chatInput) chatInput.value = '';
-            addChatMessage('me', final.trim(), true);
-            console.log('[Signova] Transcript (final):', final.trim());
+        // If isFinal results already filled the buffer, commit immediately
+        if (finalBuffer.trim()) {
+            flushToChat();
         }
     };
 
+    // ── onstart ───────────────────────────────────────────────────────────────
     speechRecognition.onstart = () => {
-        console.log('[Signova] SpeechRecognition started');
+        console.log('[Signova] SpeechRecognition started | lang:', speechRecognition.lang);
     };
 
+    // ── onerror ───────────────────────────────────────────────────────────────
     speechRecognition.onerror = (event) => {
         console.error('[Signova] STT Error:', event.error);
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
             setListening(false);
             showInterim('⚠️ Microphone access denied.');
         }
-        // 'no-speech' is normal – will auto-restart via onend
+        // 'no-speech' is normal — pause timer will handle commit & onend restarts
     };
 
-    // Auto-restart after natural end (browser stops after silence)
+    // ── onend ─────────────────────────────────────────────────────────────────
+    // Auto-restart after natural end (browser stops recognition after silence)
     speechRecognition.onend = () => {
+        // Flush any uncommitted text before restarting
+        flushToChat();
+
         if (isListening) {
-            // Still supposed to be listening – restart immediately
+            // Still supposed to be listening — restart immediately
             speechRecognition.lang = currentLang === 'hi' ? 'hi-IN' : 'en-US';
             try { speechRecognition.start(); } catch (e) {}
         } else {
@@ -948,6 +990,7 @@ if (speechRecognition) {
         }
     };
 }
+
 
 // ── Toggle listener ──────────────────────────────────────────────────────────
 if (toggleVoiceText) {
