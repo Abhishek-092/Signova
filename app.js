@@ -354,6 +354,19 @@ const BUFFER_SIZE = 10;
 const buffers = { Left: [], Right: [] };
 const stableGestures = { Left: "", Right: "" };
 
+// ── Speech Debounce ────────────────────────────────────────────────────────
+// Instead of blocking speech when gesture === lastSpoken, we allow speech
+// for every newly-stable gesture as long as 1500ms has elapsed since last TTS.
+let lastSpeakTime = 0;
+function shouldSpeak() {
+    const now = Date.now();
+    if (now - lastSpeakTime > 1500) {
+        lastSpeakTime = now;
+        return true;
+    }
+    return false;
+}
+
 const wristHistory = { Left: [], Right: [] };
 
 function isHandWaving(handLabel, wristX) {
@@ -417,23 +430,28 @@ function updatePrediction(handStr, newGesture) {
         requiredConf = 75; // strict 75% stability required
     }
 
-    if (activeLength >= BUFFER_SIZE / 2 && conf > requiredConf && dominant !== stableGestures[handStr]) {
-        stableGestures[handStr] = dominant;
-        
-        // --- Sequence Tracker ---
+    if (activeLength >= BUFFER_SIZE / 2 && conf > requiredConf) {
+        const isNewGesture = dominant !== stableGestures[handStr];
+
+        // Always update the stable gesture tracker and UI when gesture changes
+        if (isNewGesture) {
+            stableGestures[handStr] = dominant;
+        }
+
+        // --- Sequence Tracker (only push on a new gesture) ---
         const now = Date.now();
         const seq = gestureSequence[handStr];
-        
+
         // Remove sequences older than window
         while (seq.length > 0 && now - seq[0].time > PHRASE_WINDOW_MS) {
             seq.shift();
         }
-        
-        // Prevent duplicate consecutive entries to sequence 
-        if (seq.length === 0 || seq[seq.length - 1].gesture !== dominant) {
+
+        // Prevent duplicate consecutive entries to sequence
+        if (isNewGesture && (seq.length === 0 || seq[seq.length - 1].gesture !== dominant)) {
             seq.push({ gesture: dominant, time: now });
         }
-        
+
         // Search for phrase match incrementally backwards
         let foundPhrase = null;
         for (let idx = 0; idx < seq.length; idx++) {
@@ -443,27 +461,28 @@ function updatePrediction(handStr, newGesture) {
                 break;
             }
         }
-        
+
         if (foundPhrase) {
             let outputPhrase = foundPhrase;
             if (foundPhrase === "My name is...") {
                 outputPhrase = userProfile.name ? `My name is ${userProfile.name}` : "My name is ...";
             }
-            
+
             const translatedPhrase = getTranslation(outputPhrase, currentLang);
             setHandOutput(handStr, translatedPhrase, true);
             seq.length = 0; // flush sequence on phrase trigger
-            
+
+            // Phrases always speak (they already require a fresh gesture sequence)
             if (toggleSignVoice && toggleSignVoice.checked) {
                 speakText(translatedPhrase);
                 addChatMessage('me', `[Signed Phrase]: ${translatedPhrase}`);
             }
-            
+
             // Sync with Peer
             if (dataConn && dataConn.open) {
                 dataConn.send({ type: 'gesture', hand: handStr, text: translatedPhrase, isPhrase: true });
             }
-            
+
             // clear phrase highlight after a delay
             clearTimeout(activePhraseTimer[handStr]);
             activePhraseTimer[handStr] = setTimeout(() => {
@@ -473,20 +492,25 @@ function updatePrediction(handStr, newGesture) {
                     setHandOutput(handStr, "--", false);
                 }
             }, 3000);
-            
-        } else {
-            const translatedDominant = getTranslation(dominant, currentLang);
-            setHandOutput(handStr, translatedDominant, false);
-            clearTimeout(activePhraseTimer[handStr]);
-            
-            if (toggleSignVoice && toggleSignVoice.checked && dominant !== "UNKNOWN") {
-                speakText(translatedDominant);
-                addChatMessage('me', `[Signed]: ${translatedDominant}`);
-            }
 
-            // Sync with Peer
-            if (dataConn && dataConn.open) {
-                dataConn.send({ type: 'gesture', hand: handStr, text: translatedDominant, isPhrase: false });
+        } else {
+            // Update UI only when gesture changes
+            if (isNewGesture) {
+                const translatedDominant = getTranslation(dominant, currentLang);
+                setHandOutput(handStr, translatedDominant, false);
+                clearTimeout(activePhraseTimer[handStr]);
+
+                // Speak using debounce — fires for every newly held gesture
+                // AND re-fires the same gesture again after the debounce window
+                if (toggleSignVoice && toggleSignVoice.checked && dominant !== "UNKNOWN" && shouldSpeak()) {
+                    speakText(translatedDominant);
+                    addChatMessage('me', `[Signed]: ${translatedDominant}`);
+                }
+
+                // Sync with Peer
+                if (dataConn && dataConn.open) {
+                    dataConn.send({ type: 'gesture', hand: handStr, text: translatedDominant, isPhrase: false });
+                }
             }
         }
     }
