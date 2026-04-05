@@ -202,24 +202,94 @@ const translationDict = {
     "Thank you!": { hi: "धन्यवाद!" }
 };
 
+// ──────────────────────────────────────────────────────────────────
+// Syllable-aware English → Hindi transliterator
+// Handles: digraphs (sh, ch, kh, gh…), vowel signs (matra),
+// halant for consonant clusters, inherent-'a' suppression.
+// ──────────────────────────────────────────────────────────────────
 function transliterateToHindi(text) {
-    if (!text) return text;
-    const firstVowels = { 'a': 'अ', 'e': 'ए', 'i': 'इ', 'o': 'ओ', 'u': 'उ' };
-    const charMap = {
-        'a': 'ा', 'b': 'ब', 'c': 'क', 'd': 'ड', 'e': 'े', 'f': 'फ', 'g': 'ग', 'h': 'ह', 'i': 'ि',
-        'j': 'ज', 'k': 'क', 'l': 'ल', 'm': 'म', 'n': 'न', 'o': 'ो', 'p': 'प', 'q': 'क', 'r': 'र',
-        's': 'स', 't': 'ट', 'u': 'ु', 'v': 'व', 'w': 'व', 'x': 'क्स', 'y': 'य', 'z': 'ज़', ' ': ' ', '-': '-'
-    };
+    if (!text) return '';
+    const input = text.trim().toLowerCase();
+
+    // Independent vowels (word-initial / after another vowel)
+    const VOWEL_INDEP = { 'a':'अ','aa':'आ','i':'इ','ii':'ई','u':'उ','uu':'ऊ',
+                          'e':'ए','ai':'ऐ','o':'ओ','au':'औ','ri':'ऋ' };
+    // Vowel diacritics (matra) that follow a consonant
+    const VOWEL_MATRA = { 'a':'','aa':'ा','i':'ि','ii':'ी','u':'ु','uu':'ू',
+                          'e':'े','ai':'ै','o':'ो','au':'ौ','ri':'ृ' };
+    // Consonants (longest match first)
+    const CONSONANTS = [
+        ['sh','श'],['shh','ष'],['ch','च'],['chh','छ'],
+        ['kh','ख'],['gh','घ'],['jh','झ'],['th','थ'],['dh','ध'],
+        ['ph','फ'],['bh','भ'],['mh','म'],['nh','न'],['rh','र'],
+        ['tr','त्र'],['gn','ज्ञ'],
+        ['k','क'],['c','क'],['g','ग'],['j','ज'],['t','त'],['d','द'],
+        ['n','न'],['p','प'],['b','ब'],['m','म'],['y','य'],['r','र'],
+        ['l','ल'],['v','व'],['w','व'],['s','स'],['h','ह'],['f','फ'],
+        ['z','ज़'],['q','क'],['x','क्स']
+    ];
+    const VOWEL_KEYS_SORTED = ['aa','ii','uu','ai','au','ri','a','i','u','e','o'];
+    const isVowel = (s) => VOWEL_KEYS_SORTED.some(v => s.startsWith(v));
+    const matchVowel = (s) => VOWEL_KEYS_SORTED.find(v => s.startsWith(v));
+    const matchConsonant = (s) => CONSONANTS.find(([c]) => s.startsWith(c));
+
+    let i = 0;
     let result = '';
-    const lowerText = text.toLowerCase();
-    for (let i = 0; i < lowerText.length; i++) {
-        const char = lowerText[i];
-        if (i === 0 && firstVowels[char]) {
-            result += firstVowels[char];
-        } else {
-            result += charMap[char] || char;
+    let prevWasConsonant = false;  // did we just output a consonant?
+    let pendingConsonant = '';      // the Devanagari consonant waiting for its vowel
+
+    const flushConsonant = (matraKey) => {
+        if (!pendingConsonant) return;
+        result += pendingConsonant + (VOWEL_MATRA[matraKey] ?? 'अ');
+        pendingConsonant = '';
+    };
+
+    while (i < input.length) {
+        const rest = input.slice(i);
+
+        // ── spaces / hyphens ─────────────────────────────────────────
+        if (rest[0] === ' ' || rest[0] === '-') {
+            if (pendingConsonant) { result += pendingConsonant + 'अ'; pendingConsonant = ''; }
+            result += rest[0]; i++; prevWasConsonant = false; continue;
         }
+
+        // ── vowel ─────────────────────────────────────────────────────
+        const vKey = matchVowel(rest);
+        if (vKey) {
+            if (pendingConsonant) {
+                flushConsonant(vKey);
+            } else {
+                // word-initial or post-vowel → independent form
+                result += VOWEL_INDEP[vKey];
+            }
+            i += vKey.length;
+            prevWasConsonant = false;
+            continue;
+        }
+
+        // ── consonant ─────────────────────────────────────────────────
+        const cMatch = matchConsonant(rest);
+        if (cMatch) {
+            const [cRoman, cDeva] = cMatch;
+            if (pendingConsonant) {
+                // consonant cluster: flush previous with halant
+                result += pendingConsonant + '्';
+            }
+            pendingConsonant = cDeva;
+            i += cRoman.length;
+            prevWasConsonant = true;
+            continue;
+        }
+
+        // ── unrecognised character ────────────────────────────────────
+        if (pendingConsonant) { result += pendingConsonant + 'अ'; pendingConsonant = ''; }
+        result += rest[0]; i++;
     }
+
+    // Flush any trailing consonant with inherent 'a'
+    if (pendingConsonant) result += pendingConsonant + 'अ';
+
+    console.log('[Signova] Hindi name transliteration:', text, '→', result);
     return result;
 }
 
@@ -855,19 +925,41 @@ function updateSTTState() {
 if (toggleVoiceText) toggleVoiceText.addEventListener('change', updateSTTState);
 
 
+// Cached voice list — populated once voices are ready
+let cachedVoices = [];
+let hindiVoice = null;
+
+function loadAndCacheVoices() {
+    cachedVoices = window.speechSynthesis.getVoices();
+    hindiVoice = cachedVoices.find(v => v.lang.startsWith('hi')) || null;
+    console.log('[Signova] Voices loaded:', cachedVoices.length, '| Hindi voice:', hindiVoice?.name || 'none – will use hi-IN lang tag');
+}
+
+// onvoiceschanged fires asynchronously in most browsers
+if (window.speechSynthesis) {
+    window.speechSynthesis.onvoiceschanged = loadAndCacheVoices;
+    loadAndCacheVoices(); // also try immediately (some browsers are sync)
+}
+
 function speakText(text) {
+    if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
+
     const utterance = new SpeechSynthesisUtterance(text);
+
     if (currentLang === 'hi') {
         utterance.lang = 'hi-IN';
-        const voices = window.speechSynthesis.getVoices();
-        const hindiVoice = voices.find(v => v.lang.startsWith('hi'));
         if (hindiVoice) {
             utterance.voice = hindiVoice;
+            utterance.lang  = hindiVoice.lang; // use the exact lang tag the voice reports
+        } else {
+            console.warn('[Signova] No Hindi voice found – speaking with hi-IN lang tag only.');
         }
     } else {
         utterance.lang = 'en-US';
     }
+
+    console.log('[Signova] Speaking:', text, '| lang:', utterance.lang, '| voice:', utterance.voice?.name || 'default');
     window.speechSynthesis.speak(utterance);
 }
 
@@ -915,7 +1007,7 @@ chatInput?.addEventListener('keypress', (e) => {
 });
 
 window.addEventListener('DOMContentLoaded', async () => {
-    window.speechSynthesis.getVoices(); // Preload voices
+    // Voices are loaded via onvoiceschanged / loadAndCacheVoices above
     if (document.getElementById('input-video')) {
         const stream = await checkSystemHealth();
         if (stream) {
