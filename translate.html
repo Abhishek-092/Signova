@@ -56,11 +56,12 @@
                 <span id="tracker-status">Initializing System...</span>
             </div>
             <div class="top-controls flex-gap-sm">
-                <div id="profile-display" class="profile-display hidden">
+                <div id="profile-display" class="profile-display hidden" style="display: none;">
                     <img id="profile-avatar-img" src="" alt="Avatar" class="avatar-img">
                     <span id="profile-name-display" class="orbitron neon-text" style="font-size: 0.85rem;"></span>
                 </div>
-                <button id="account-btn" class="icon-btn" title="Account Profile"><i data-lucide="user"></i></button>
+                <button id="account-btn" class="icon-btn profile-btn" title="Account Profile"><i data-lucide="user"></i></button>
+                <button id="lang-btn" class="icon-btn" title="Change Language"><i data-lucide="globe"></i></button>
                 <button id="info-btn" class="icon-btn" title="System Info"><i data-lucide="info"></i></button>
             </div>
         </header>
@@ -246,6 +247,22 @@
                 <button id="close-profile-btn" class="cyber-btn control-btn" style="color: #cbd5e1; border-color: #64748b;">CANCEL</button>
                 <button id="save-profile-btn" class="cyber-btn">SAVE DATA</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Language Modal -->
+    <div id="language-modal" class="cyber-modal hidden">
+        <div class="modal-content glass-panel" style="max-width: 400px; text-align: center;">
+            <h2 class="orbitron neon-text">TRANSLATION MODULE</h2>
+            <div class="modal-body">
+                <div class="lang-option active" data-lang="en">
+                    <span class="orbitron" style="font-size: 1.1rem; letter-spacing: 1px;">ENGLISH (EN)</span>
+                </div>
+                <div class="lang-option" data-lang="hi" style="margin-top: 1rem;">
+                    <span class="orbitron" style="font-size: 1.1rem; letter-spacing: 1px;">HINDI (हिंदी)</span>
+                </div>
+            </div>
+            <button id="close-lang-btn" class="cyber-btn mt-6 control-btn" style="color: #cbd5e1; border-color: #64748b; width: 100%;">CLOSE MODULE</button>
         </div>
     </div>
 

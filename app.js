@@ -169,6 +169,81 @@ if (accountBtn && profileModal) {
     });
 }
 
+// Language Logic
+const langBtn = document.getElementById('lang-btn');
+const langModal = document.getElementById('language-modal');
+const closeLangBtn = document.getElementById('close-lang-btn');
+const langOptions = document.querySelectorAll('.lang-option');
+
+const translationDict = {
+    "HELLO": { hi: "नमस्ते" },
+    "YES": { hi: "हाँ" },
+    "NO": { hi: "नहीं" },
+    "ONE": { hi: "एक" },
+    "TWO": { hi: "दो" },
+    "THREE": { hi: "तीन" },
+    "FOUR": { hi: "चार" },
+    "FIVE": { hi: "पाँच" },
+    "THANK": { hi: "धन्यवाद" },
+    "I": { hi: "मैं" },
+    "LOVE": { hi: "प्यार" },
+    "YOU": { hi: "तुम" },
+    "MY": { hi: "मेरा" },
+    "NAME": { hi: "नाम" },
+    "HAPPY": { hi: "खुश" },
+    "GOOD": { hi: "अच्छा" },
+    "THUMBS DOWN": { hi: "अस्वीकार" },
+    "ROCK": { hi: "कमाल" },
+    // Phrases
+    "I love you": { hi: "मैं तुमसे प्यार करता हूँ" },
+    "My name is...": { hi: "मेरा नाम है..." },
+    "I am happy!": { hi: "मैं खुश हूँ!" },
+    "Goodbye!": { hi: "अलविदा!" },
+    "Thank you!": { hi: "धन्यवाद!" }
+};
+
+let currentLang = localStorage.getItem('signova_lang') || 'en';
+
+function getTranslation(text, lang) {
+    if (lang === 'en' || !lang) return text;
+    if (text.startsWith("My name is ")) {
+        const namePart = text.replace("My name is ", "");
+        return translationDict["My name is..."]?.[lang]?.replace("...", namePart) || text;
+    }
+    return translationDict[text]?.[lang] || text;
+}
+
+if (langBtn && langModal && closeLangBtn) {
+    langBtn.addEventListener('click', () => {
+        langOptions.forEach(opt => {
+            opt.classList.toggle('active', opt.dataset.lang === currentLang);
+        });
+        langModal.classList.remove('hidden');
+    });
+    
+    closeLangBtn.addEventListener('click', () => langModal.classList.add('hidden'));
+
+    langOptions.forEach(opt => {
+        opt.addEventListener('click', (e) => {
+            currentLang = e.currentTarget.dataset.lang;
+            localStorage.setItem('signova_lang', currentLang);
+            
+            langOptions.forEach(o => o.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            
+            // Retro-update live output
+            if (stableGestures.Left && stableGestures.Left !== "" && stableGestures.Left !== "UNKNOWN") {
+                setHandOutput("Left", getTranslation(stableGestures.Left, currentLang), false);
+            }
+            if (stableGestures.Right && stableGestures.Right !== "" && stableGestures.Right !== "UNKNOWN") {
+                setHandOutput("Right", getTranslation(stableGestures.Right, currentLang), false);
+            }
+            
+            setTimeout(() => langModal.classList.add('hidden'), 200);
+        });
+    });
+}
+
 // Phrase Sequence Tracking
 const PHRASE_WINDOW_MS = 4000;
 const gestureSequence = { Left: [], Right: [] };
@@ -283,41 +358,43 @@ function updatePrediction(handStr, newGesture) {
                 outputPhrase = userProfile.name ? `My name is ${userProfile.name}` : "My name is ...";
             }
             
-            setHandOutput(handStr, outputPhrase, true);
+            const translatedPhrase = getTranslation(outputPhrase, currentLang);
+            setHandOutput(handStr, translatedPhrase, true);
             seq.length = 0; // flush sequence on phrase trigger
             
             if (toggleSignVoice && toggleSignVoice.checked) {
-                speakText(outputPhrase);
-                addChatMessage('me', `[Signed Phrase]: ${outputPhrase}`);
+                speakText(translatedPhrase);
+                addChatMessage('me', `[Signed Phrase]: ${translatedPhrase}`);
             }
             
             // Sync with Peer
             if (dataConn && dataConn.open) {
-                dataConn.send({ type: 'gesture', hand: handStr, text: outputPhrase, isPhrase: true });
+                dataConn.send({ type: 'gesture', hand: handStr, text: translatedPhrase, isPhrase: true });
             }
             
             // clear phrase highlight after a delay
             clearTimeout(activePhraseTimer[handStr]);
             activePhraseTimer[handStr] = setTimeout(() => {
                 if (stableGestures[handStr] !== "") {
-                    setHandOutput(handStr, stableGestures[handStr], false);
+                    setHandOutput(handStr, getTranslation(stableGestures[handStr], currentLang), false);
                 } else {
                     setHandOutput(handStr, "--", false);
                 }
             }, 3000);
             
         } else {
-            setHandOutput(handStr, dominant, false);
+            const translatedDominant = getTranslation(dominant, currentLang);
+            setHandOutput(handStr, translatedDominant, false);
             clearTimeout(activePhraseTimer[handStr]);
             
             if (toggleSignVoice && toggleSignVoice.checked && dominant !== "UNKNOWN") {
-                speakText(dominant);
-                addChatMessage('me', `[Signed]: ${dominant}`);
+                speakText(translatedDominant);
+                addChatMessage('me', `[Signed]: ${translatedDominant}`);
             }
 
             // Sync with Peer
             if (dataConn && dataConn.open) {
-                dataConn.send({ type: 'gesture', hand: handStr, text: dominant, isPhrase: false });
+                dataConn.send({ type: 'gesture', hand: handStr, text: translatedDominant, isPhrase: false });
             }
         }
     }
@@ -759,6 +836,11 @@ if (toggleVoiceText) toggleVoiceText.addEventListener('change', updateSTTState);
 function speakText(text) {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
+    if (currentLang === 'hi') {
+        utterance.lang = 'hi-IN';
+    } else {
+        utterance.lang = 'en-US';
+    }
     window.speechSynthesis.speak(utterance);
 }
 
