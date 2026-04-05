@@ -901,54 +901,42 @@ function setListening(value) {
 // Wire up events only when API is available
 if (speechRecognition) {
 
-    // ── Buffers & timers ──────────────────────────────────────────────────────
-    let finalBuffer    = '';   // accumulates isFinal segments
-    let speechPauseTimer = null; // commits text after silence
+    // ── Single live transcript + pause timer ──────────────────────────────────
+    let liveTranscript   = '';   // always holds the latest full spoken text
+    let speechPauseTimer = null;
 
-    // Flush buffered speech into the chat stream
+    // Commit whatever was spoken to the chat stream
     function flushToChat() {
         clearTimeout(speechPauseTimer);
-        speechPauseTimer = null;
 
-        let text = '';
-        if (finalBuffer.trim()) {
-            text = finalBuffer.trim();
-        } else if (chatInput && chatInput.value.trim()) {
-            text = chatInput.value.trim();
-        }
-
+        const text = liveTranscript.trim();
         if (text) {
             addChatMessage('me', text, true);
-            console.log('✅ SENT TO CHAT:', text);
+            console.log('✅ SENT:', text);
         }
 
-        finalBuffer = '';
+        liveTranscript = '';
         if (chatInput) chatInput.value = '';
     }
 
     // ── onresult ─────────────────────────────────────────────────────────────
+    // Capture ALL segments regardless of isFinal — browser-proof approach
     speechRecognition.onresult = (event) => {
-        let interim = '';
+        let transcript = '';
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-
-            if (event.results[i].isFinal) {
-                finalBuffer += transcript + ' ';
-            } else {
-                interim += transcript;
-            }
+            transcript += event.results[i][0].transcript;
         }
 
-        console.log('🎤 Interim:', interim);
-        console.log('🎤 Final Buffer:', finalBuffer);
+        liveTranscript = transcript;
+        console.log('🎤 LIVE:', liveTranscript);
 
         // Show live typing in the input field
-        if (chatInput) chatInput.value = interim;
+        if (chatInput) chatInput.value = liveTranscript;
 
-        // Restart pause timer ONLY — no immediate flush
+        // Reset pause timer — commit fires only after 1.2s of silence
         clearTimeout(speechPauseTimer);
-        speechPauseTimer = setTimeout(flushToChat, 1500);
+        speechPauseTimer = setTimeout(flushToChat, 1200);
     };
 
     // ── onstart ───────────────────────────────────────────────────────────────
@@ -963,11 +951,11 @@ if (speechRecognition) {
             setListening(false);
             showInterim('⚠️ Microphone access denied.');
         }
-        // 'no-speech' is normal — pause timer will handle commit & onend restarts
+        // 'no-speech' is normal — onend will restart
     };
 
     // ── onend ─────────────────────────────────────────────────────────────────
-    // Flush remaining text, then restart if still listening
+    // Safety flush, then restart if still listening
     speechRecognition.onend = () => {
         flushToChat();
 
