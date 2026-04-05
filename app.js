@@ -1251,7 +1251,7 @@ function handleCallClosed() {
     }
 
     if (connectionOverlay) connectionOverlay.classList.remove('connected');
-    if (connectionStatus) connectionStatus.innerText = "FINDING NEXT PARTNER...";
+    if (connectionStatus) connectionStatus.innerText = "Ready for Call";
     if (remoteVideoElement) remoteVideoElement.srcObject = null;
     
     isBusy = false;
@@ -1262,7 +1262,7 @@ function handleCallClosed() {
     }
     
     setTimeout(() => {
-        if (connectionStatus) connectionStatus.innerText = "FINDING PARTNER...";
+        if (connectionStatus) connectionStatus.innerText = "Connecting...";
     }, 1500);
 }
 
