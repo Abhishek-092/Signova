@@ -856,75 +856,82 @@ function speakText(text) {
 }
 
 
-// ── Voice Input (ChatGPT Style) ──────────────────────────────────────────────
+// ── Voice Input (Unified State Style) ──────────────────────────────────────────────
 let recognition = null;
-let isMicOn = false;
+
+function toggleMic(state) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        alert("Use Chrome for voice typing");
+        return;
+    }
+
+    if (state === true && !isListening) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(() => {
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = currentLang === "hi" ? "hi-IN" : "en-US";
+
+                recognition.start();
+                isListening = true;
+
+                console.log("🎤 STARTED");
+
+                if (speakBtn) speakBtn.classList.add("mic-active");
+                if (toggleVoiceText) toggleVoiceText.checked = true;
+
+                recognition.onresult = (event) => {
+                    let text = "";
+
+                    for (let i = 0; i < event.results.length; i++) {
+                        text += event.results[i][0].transcript;
+                    }
+
+                    console.log("🎤 TEXT:", text);
+
+                    if (chatInput) {
+                        chatInput.value = text;
+                    }
+                };
+
+                recognition.onerror = (e) => {
+                    console.error("STT ERROR:", e);
+                };
+
+                recognition.onend = () => {
+                    if (isListening) {
+                        try { recognition.start(); } catch (e) {}
+                    }
+                };
+            })
+            .catch(() => {
+                alert("Mic permission required");
+            });
+    }
+
+    if (state === false && isListening) {
+        if (recognition) recognition.stop();
+        isListening = false;
+
+        console.log("🎤 STOPPED");
+
+        if (speakBtn) speakBtn.classList.remove("mic-active");
+        if (toggleVoiceText) toggleVoiceText.checked = false;
+    }
+}
 
 if (speakBtn) {
-    speakBtn.addEventListener("click", async () => {
+    speakBtn.addEventListener("click", () => {
+        toggleMic(!isListening);
+    });
+}
 
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-        if (!SpeechRecognition) {
-            alert("Speech Recognition not supported. Use Chrome.");
-            return;
-        }
-
-        // Toggle OFF
-        if (isMicOn && recognition) {
-            recognition.stop();
-            isMicOn = false;
-            speakBtn.classList.remove("mic-active");
-            console.log("🎤 STOPPED");
-            return;
-        }
-
-        // Request mic permission
-        try {
-            await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch (err) {
-            alert("Please allow microphone access.");
-            return;
-        }
-
-        // Create NEW instance every time
-        recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = currentLang === "hi" ? "hi-IN" : "en-US";
-
-        recognition.start();
-        isMicOn = true;
-
-        console.log("🎤 STARTED");
-
-        speakBtn.classList.add("mic-active");
-
-        recognition.onresult = (event) => {
-            let transcript = "";
-
-            for (let i = 0; i < event.results.length; i++) {
-                transcript += event.results[i][0].transcript;
-            }
-
-            console.log("🎤 HEARD:", transcript);
-
-            if (chatInput) {
-                chatInput.value = transcript;
-            }
-        };
-
-        recognition.onerror = (e) => {
-            console.error("STT ERROR:", e);
-        };
-
-        recognition.onend = () => {
-            if (isMicOn) {
-                try { recognition.start(); } catch (e) {}
-            } else {
-                speakBtn.classList.remove("mic-active");
-            }
-        };
+if (toggleVoiceText) {
+    toggleVoiceText.addEventListener("change", () => {
+        toggleMic(toggleVoiceText.checked);
     });
 }
 
