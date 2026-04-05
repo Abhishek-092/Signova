@@ -905,26 +905,25 @@ if (speechRecognition) {
     let finalBuffer    = '';   // accumulates isFinal segments
     let speechPauseTimer = null; // commits text after silence
 
-    // Flush whatever is buffered into the chat stream
+    // Flush buffered speech into the chat stream
     function flushToChat() {
         clearTimeout(speechPauseTimer);
         speechPauseTimer = null;
 
-        // Prefer finalBuffer; fall back to whatever is live in the input box
-        const toSend = (finalBuffer || (chatInput ? chatInput.value : '')).trim();
-        finalBuffer = '';
-
-        if (toSend) {
-            if (chatInput) chatInput.value = '';
-            addChatMessage('me', toSend, true);
-            console.log('[Signova] Transcript committed to chat:', toSend);
+        let text = '';
+        if (finalBuffer.trim()) {
+            text = finalBuffer.trim();
+        } else if (chatInput && chatInput.value.trim()) {
+            text = chatInput.value.trim();
         }
-    }
 
-    // Start the pause countdown (resets on every new speech event)
-    function armPauseTimer() {
-        clearTimeout(speechPauseTimer);
-        speechPauseTimer = setTimeout(flushToChat, 1500);
+        if (text) {
+            addChatMessage('me', text, true);
+            console.log('✅ SENT TO CHAT:', text);
+        }
+
+        finalBuffer = '';
+        if (chatInput) chatInput.value = '';
     }
 
     // ── onresult ─────────────────────────────────────────────────────────────
@@ -933,30 +932,23 @@ if (speechRecognition) {
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
             const transcript = event.results[i][0].transcript;
-            console.log('[Signova] Transcript:', transcript,
-                        '| isFinal:', event.results[i].isFinal);
 
             if (event.results[i].isFinal) {
                 finalBuffer += transcript + ' ';
-                console.log('[Signova] Final buffer:', finalBuffer);
             } else {
                 interim += transcript;
             }
         }
 
-        // Always reset the silence timer on new speech
-        armPauseTimer();
+        console.log('🎤 Interim:', interim);
+        console.log('🎤 Final Buffer:', finalBuffer);
 
-        if (interim) {
-            // Show live typing in the input field
-            if (chatInput) chatInput.value = interim;
-            syncMessageToPeer(interim, 'voice_interim');
-        }
+        // Show live typing in the input field
+        if (chatInput) chatInput.value = interim;
 
-        // If isFinal results already filled the buffer, commit immediately
-        if (finalBuffer.trim()) {
-            flushToChat();
-        }
+        // Restart pause timer ONLY — no immediate flush
+        clearTimeout(speechPauseTimer);
+        speechPauseTimer = setTimeout(flushToChat, 1500);
     };
 
     // ── onstart ───────────────────────────────────────────────────────────────
@@ -975,13 +967,11 @@ if (speechRecognition) {
     };
 
     // ── onend ─────────────────────────────────────────────────────────────────
-    // Auto-restart after natural end (browser stops recognition after silence)
+    // Flush remaining text, then restart if still listening
     speechRecognition.onend = () => {
-        // Flush any uncommitted text before restarting
         flushToChat();
 
         if (isListening) {
-            // Still supposed to be listening — restart immediately
             speechRecognition.lang = currentLang === 'hi' ? 'hi-IN' : 'en-US';
             try { speechRecognition.start(); } catch (e) {}
         } else {
