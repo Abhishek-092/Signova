@@ -768,3 +768,4 @@ input:checked ~ .toggle-label { color: var(--neon-green); text-shadow: 0 0 10px 
     color: var(--neon-green);
     transition: all 0.3s ease;
 }
+
