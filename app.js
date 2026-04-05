@@ -837,31 +837,18 @@ function startListening() {
         speechRecognition.interimResults = true;
 
         speechRecognition.onresult = (event) => {
-            let finalTranscript = "";
+            let transcript = "";
 
             for (let i = event.resultIndex; i < event.results.length; i++) {
-                const res = event.results[i];
-
-                if (res.isFinal) {
-                    finalTranscript += res[0].transcript;
-                }
+                transcript += event.results[i][0].transcript;
             }
 
-            // Show live typing
-            const last = event.results[event.results.length - 1];
-            if (chatInput && last) {
-                chatInput.value = last[0].transcript;
-            }
+            console.log("🎤 Speech:", transcript);
 
-            // 🚀 ONLY SEND WHEN FINAL EXISTS
-            if (finalTranscript.trim()) {
-                console.log("✅ FINAL DETECTED:", finalTranscript);
-                addChatMessage('me', finalTranscript.trim(), true);
-                if (chatInput) chatInput.value = "";
+            // ✅ ONLY TYPE INTO INPUT BOX
+            if (chatInput) {
+                chatInput.value = transcript;
             }
-
-            console.log("EVENT:", event.results);
-            console.log("FINAL:", finalTranscript);
         };
 
         speechRecognition.onerror = (e) => {
@@ -873,11 +860,6 @@ function startListening() {
         };
 
         speechRecognition.onend = () => {
-            if (chatInput && chatInput.value.trim()) {
-                addChatMessage('me', chatInput.value.trim(), true);
-                chatInput.value = "";
-            }
-
             if (isListening) {
                 try { speechRecognition.start(); } catch (e) {}
             }
@@ -902,13 +884,7 @@ function stopListening() {
     if (speechRecognition) {
         try { speechRecognition.stop(); } catch (e) {}
     }
-}
-
-function sendToChat(text) {
-    if (!text || !text.trim()) return;
-
-    addChatMessage('me', text.trim(), true);
-    console.log("✅ SENT TO CHAT:", text.trim());
+    if (chatInput) chatInput.value = "";
 }
 
 // ── Shared mic state machine ─────────────────────────────────────────────────
@@ -1003,7 +979,9 @@ function speakText(text) {
 
 // speak-btn directly drives the shared state machine
 if (speakBtn) {
-    speakBtn.addEventListener('click', () => setListening(!isListening));
+    speakBtn.addEventListener('click', () => {
+        syncToggleState(!isListening);
+    });
 }
 
 if (sendBtn && chatInput) {
