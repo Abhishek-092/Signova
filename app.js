@@ -196,11 +196,32 @@ const translationDict = {
     "ROCK": { hi: "कमाल" },
     // Phrases
     "I love you": { hi: "मैं तुमसे प्यार करता हूँ" },
-    "My name is...": { hi: "मेरा नाम है..." },
+    "My name is...": { hi: "मेरा नाम ... है" },
     "I am happy!": { hi: "मैं खुश हूँ!" },
     "Goodbye!": { hi: "अलविदा!" },
     "Thank you!": { hi: "धन्यवाद!" }
 };
+
+function transliterateToHindi(text) {
+    if (!text) return text;
+    const firstVowels = { 'a': 'अ', 'e': 'ए', 'i': 'इ', 'o': 'ओ', 'u': 'उ' };
+    const charMap = {
+        'a': 'ा', 'b': 'ब', 'c': 'क', 'd': 'ड', 'e': 'े', 'f': 'फ', 'g': 'ग', 'h': 'ह', 'i': 'ि',
+        'j': 'ज', 'k': 'क', 'l': 'ल', 'm': 'म', 'n': 'न', 'o': 'ो', 'p': 'प', 'q': 'क', 'r': 'र',
+        's': 'स', 't': 'ट', 'u': 'ु', 'v': 'व', 'w': 'व', 'x': 'क्स', 'y': 'य', 'z': 'ज़', ' ': ' ', '-': '-'
+    };
+    let result = '';
+    const lowerText = text.toLowerCase();
+    for (let i = 0; i < lowerText.length; i++) {
+        const char = lowerText[i];
+        if (i === 0 && firstVowels[char]) {
+            result += firstVowels[char];
+        } else {
+            result += charMap[char] || char;
+        }
+    }
+    return result;
+}
 
 let currentLang = localStorage.getItem('signova_lang') || 'en';
 
@@ -208,7 +229,8 @@ function getTranslation(text, lang) {
     if (lang === 'en' || !lang) return text;
     if (text.startsWith("My name is ")) {
         const namePart = text.replace("My name is ", "");
-        return translationDict["My name is..."]?.[lang]?.replace("...", namePart) || text;
+        const translatedName = lang === "hi" ? transliterateToHindi(namePart) : namePart;
+        return (translationDict["My name is..."]?.[lang] || "My name is ...").replace("...", translatedName);
     }
     return translationDict[text]?.[lang] || text;
 }
@@ -838,6 +860,11 @@ function speakText(text) {
     const utterance = new SpeechSynthesisUtterance(text);
     if (currentLang === 'hi') {
         utterance.lang = 'hi-IN';
+        const voices = window.speechSynthesis.getVoices();
+        const hindiVoice = voices.find(v => v.lang.startsWith('hi'));
+        if (hindiVoice) {
+            utterance.voice = hindiVoice;
+        }
     } else {
         utterance.lang = 'en-US';
     }
@@ -888,6 +915,7 @@ chatInput?.addEventListener('keypress', (e) => {
 });
 
 window.addEventListener('DOMContentLoaded', async () => {
+    window.speechSynthesis.getVoices(); // Preload voices
     if (document.getElementById('input-video')) {
         const stream = await checkSystemHealth();
         if (stream) {
