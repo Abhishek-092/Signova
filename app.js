@@ -812,130 +812,9 @@ function addChatMessage(sender, text, isVoice = false) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Speech-to-Text (STT) System
+// Speech-to-Text (STT) has been transitioned to an on-demand async model
+// triggered via speakBtn. Older background monitoring code removed.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const STTApi = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-// No global STT timers or final buffers anymore
-
-function startListening() {
-    if (!STTApi) {
-        console.warn('Speech Recognition not supported in this browser.');
-        if (toggleVoiceText) {
-            toggleVoiceText.disabled = true;
-            const label = toggleVoiceText.closest('.cyber-toggle')?.querySelector('.toggle-label');
-            if (label) label.innerText = 'STT Unsupported';
-        }
-        if (speakBtn) speakBtn.disabled = true;
-        return;
-    }
-
-    if (!speechRecognition) {
-        speechRecognition = new STTApi();
-        speechRecognition.continuous = true;
-        speechRecognition.interimResults = true;
-
-        speechRecognition.onresult = (event) => {
-            let transcript = "";
-
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                transcript += event.results[i][0].transcript;
-            }
-
-            console.log("🎤 Speech:", transcript);
-
-            // ✅ ONLY TYPE INTO INPUT BOX
-            if (chatInput) {
-                chatInput.value = transcript;
-            }
-        };
-
-        speechRecognition.onerror = (e) => {
-            console.error("STT Error:", e);
-            if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-                syncToggleState(false);
-                showInterim('⚠️ Microphone access denied.');
-            }
-        };
-
-        speechRecognition.onend = () => {
-            if (isListening) {
-                try { speechRecognition.start(); } catch (e) {}
-            }
-        };
-    }
-
-    speechRecognition.lang = currentLang === "hi" ? "hi-IN" : "en-US";
-
-    navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(() => {
-            console.log("Mic access granted");
-            try { speechRecognition.start(); } catch (e) {}
-        })
-        .catch(err => {
-            console.error("Mic access denied", err);
-            alert('⚠️ Microphone access is required for Voice → Text. Please allow mic access and try again.');
-            syncToggleState(false);
-        });
-}
-
-function stopListening() {
-    if (speechRecognition) {
-        try { speechRecognition.stop(); } catch (e) {}
-    }
-    if (chatInput) chatInput.value = "";
-}
-
-// ── Shared mic state machine ─────────────────────────────────────────────────
-function syncToggleState(value) {
-    isListening = value;
-
-    if (toggleVoiceText && toggleVoiceText.checked !== value) {
-        toggleVoiceText.checked = value;
-    }
-
-    if (speakBtn) {
-        if (value) {
-            speakBtn.classList.add('mic-active');
-            speakBtn.title = 'Stop Microphone';
-        } else {
-            speakBtn.classList.remove('mic-active');
-            speakBtn.title = 'Toggle Microphone';
-        }
-    }
-
-    const label = toggleVoiceText?.closest('.cyber-toggle')?.querySelector('.toggle-label');
-    if (label) {
-        if (value) {
-            label.innerHTML = '🎤 Listening...';
-            label.classList.add('neon-text');
-            label.style.textShadow = '0 0 10px #4ade80, 0 0 20px #4ade80';
-        } else {
-            label.innerHTML = 'Voice &rarr; Text';
-            label.classList.remove('neon-text');
-            label.style.textShadow = '';
-        }
-    }
-
-    if (value) {
-        startListening();
-    } else {
-        stopListening();
-        if (chatInput) chatInput.value = '';
-        clearTimeout(pauseTimer);
-    }
-}
-
-// ── Toggle listener ──────────────────────────────────────────────────────────
-if (toggleVoiceText) {
-    toggleVoiceText.addEventListener('change', () => syncToggleState(toggleVoiceText.checked));
-}
-
-// Legacy shim so existing callers continue to work
-function updateSTTState() {
-    if (toggleVoiceText) syncToggleState(toggleVoiceText.checked);
-}
 
 
 // Cached voice list — populated once voices are ready
@@ -977,10 +856,74 @@ function speakText(text) {
 }
 
 
-// speak-btn directly drives the shared state machine
+// ── Voice Input (ChatGPT Style) ──────────────────────────────────────────────
 if (speakBtn) {
-    speakBtn.addEventListener('click', () => {
-        syncToggleState(!isListening);
+    let activeRecognition = null;
+
+    speakBtn.addEventListener("click", async () => {
+        // If already listening, stop it (adding simple toggle capacity safely)
+        if (activeRecognition) {
+            try { activeRecognition.stop(); } catch (e) {}
+            activeRecognition = null;
+            speakBtn.classList.remove("mic-active");
+            return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+            alert("Speech Recognition not supported in this browser");
+            return;
+        }
+
+        // Force mic permission FIRST
+        try {
+            await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (err) {
+            alert("Please allow microphone access");
+            return;
+        }
+
+        // Create fresh instance EVERY TIME
+        const recognition = new SpeechRecognition();
+        activeRecognition = recognition;
+
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = currentLang === "hi" ? "hi-IN" : "en-US";
+
+        recognition.start();
+
+        console.log("🎤 Mic started");
+
+        // UI feedback
+        speakBtn.classList.add("mic-active");
+
+        recognition.onresult = (event) => {
+            let transcript = "";
+
+            for (let i = 0; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
+
+            console.log("🎤 Heard:", transcript);
+
+            if (chatInput) {
+                chatInput.value = transcript;
+            }
+        };
+
+        recognition.onerror = (e) => {
+            console.error("STT error:", e);
+        };
+
+        recognition.onend = () => {
+            console.log("🎤 Mic stopped");
+            speakBtn.classList.remove("mic-active");
+            if (activeRecognition === recognition) {
+                activeRecognition = null;
+            }
+        };
     });
 }
 
