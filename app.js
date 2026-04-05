@@ -817,8 +817,7 @@ function addChatMessage(sender, text, isVoice = false) {
 
 const STTApi = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-let finalText = "";
-let pauseTimer;
+// No global STT timers or final buffers anymore
 
 function startListening() {
     if (!STTApi) {
@@ -838,26 +837,31 @@ function startListening() {
         speechRecognition.interimResults = true;
 
         speechRecognition.onresult = (event) => {
-            let transcript = "";
+            let finalTranscript = "";
 
-            for (let i = 0; i < event.results.length; i++) {
-                transcript += event.results[i][0].transcript;
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const res = event.results[i];
+
+                if (res.isFinal) {
+                    finalTranscript += res[0].transcript;
+                }
             }
 
-            console.log("🎤 Heard:", transcript);
-            finalText = transcript;
-
-            // show typing
-            if (chatInput) {
-                chatInput.value = transcript;
+            // Show live typing
+            const last = event.results[event.results.length - 1];
+            if (chatInput && last) {
+                chatInput.value = last[0].transcript;
             }
 
-            clearTimeout(pauseTimer);
-            pauseTimer = setTimeout(() => {
-                sendToChat(finalText);
-                finalText = "";
+            // 🚀 ONLY SEND WHEN FINAL EXISTS
+            if (finalTranscript.trim()) {
+                console.log("✅ FINAL DETECTED:", finalTranscript);
+                addChatMessage('me', finalTranscript.trim(), true);
                 if (chatInput) chatInput.value = "";
-            }, 1200);
+            }
+
+            console.log("EVENT:", event.results);
+            console.log("FINAL:", finalTranscript);
         };
 
         speechRecognition.onerror = (e) => {
@@ -869,6 +873,11 @@ function startListening() {
         };
 
         speechRecognition.onend = () => {
+            if (chatInput && chatInput.value.trim()) {
+                addChatMessage('me', chatInput.value.trim(), true);
+                chatInput.value = "";
+            }
+
             if (isListening) {
                 try { speechRecognition.start(); } catch (e) {}
             }
