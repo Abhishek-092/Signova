@@ -817,30 +817,99 @@ function addChatMessage(sender, text, isVoice = false) {
 
 const STTApi = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-if (!STTApi) {
-    console.warn('[Signova] Speech Recognition not supported in this browser.');
-    if (toggleVoiceText) {
-        toggleVoiceText.disabled = true;
-        const label = toggleVoiceText.closest('.cyber-toggle')?.querySelector('.toggle-label');
-        if (label) label.innerText = 'STT Unsupported';
+let finalText = "";
+let pauseTimer;
+
+function startListening() {
+    if (!STTApi) {
+        console.warn('Speech Recognition not supported in this browser.');
+        if (toggleVoiceText) {
+            toggleVoiceText.disabled = true;
+            const label = toggleVoiceText.closest('.cyber-toggle')?.querySelector('.toggle-label');
+            if (label) label.innerText = 'STT Unsupported';
+        }
+        if (speakBtn) speakBtn.disabled = true;
+        return;
     }
-    if (speakBtn) speakBtn.disabled = true;
-} else {
-    speechRecognition = new STTApi();
-    speechRecognition.continuous = true;
-    speechRecognition.interimResults = true;
-    // lang is synced dynamically before each start() call
+
+    if (!speechRecognition) {
+        speechRecognition = new STTApi();
+        speechRecognition.continuous = true;
+        speechRecognition.interimResults = true;
+
+        speechRecognition.onresult = (event) => {
+            let transcript = "";
+
+            for (let i = 0; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
+
+            console.log("🎤 Heard:", transcript);
+            finalText = transcript;
+
+            // show typing
+            if (chatInput) {
+                chatInput.value = transcript;
+            }
+
+            clearTimeout(pauseTimer);
+            pauseTimer = setTimeout(() => {
+                sendToChat(finalText);
+                finalText = "";
+                if (chatInput) chatInput.value = "";
+            }, 1200);
+        };
+
+        speechRecognition.onerror = (e) => {
+            console.error("STT Error:", e);
+            if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+                syncToggleState(false);
+                showInterim('⚠️ Microphone access denied.');
+            }
+        };
+
+        speechRecognition.onend = () => {
+            if (isListening) {
+                try { speechRecognition.start(); } catch (e) {}
+            }
+        };
+    }
+
+    speechRecognition.lang = currentLang === "hi" ? "hi-IN" : "en-US";
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(() => {
+            console.log("Mic access granted");
+            try { speechRecognition.start(); } catch (e) {}
+        })
+        .catch(err => {
+            console.error("Mic access denied", err);
+            alert('⚠️ Microphone access is required for Voice → Text. Please allow mic access and try again.');
+            syncToggleState(false);
+        });
+}
+
+function stopListening() {
+    if (speechRecognition) {
+        try { speechRecognition.stop(); } catch (e) {}
+    }
+}
+
+function sendToChat(text) {
+    if (!text || !text.trim()) return;
+
+    addChatMessage('me', text.trim(), true);
+    console.log("✅ SENT TO CHAT:", text.trim());
 }
 
 // ── Shared mic state machine ─────────────────────────────────────────────────
-// Single source of truth – both the toggle and the speak-btn call setListening()
-function setListening(value) {
+function syncToggleState(value) {
     isListening = value;
 
-    // Keep toggle checkbox in sync
-    if (toggleVoiceText) toggleVoiceText.checked = value;
+    if (toggleVoiceText && toggleVoiceText.checked !== value) {
+        toggleVoiceText.checked = value;
+    }
 
-    // Update speak-btn icon / glow
     if (speakBtn) {
         if (value) {
             speakBtn.classList.add('mic-active');
@@ -851,7 +920,6 @@ function setListening(value) {
         }
     }
 
-    // Update toggle label
     const label = toggleVoiceText?.closest('.cyber-toggle')?.querySelector('.toggle-label');
     if (label) {
         if (value) {
@@ -865,119 +933,23 @@ function setListening(value) {
         }
     }
 
-    if (!speechRecognition) return;
-
     if (value) {
-        // Always sync language to current user preference before starting
-        speechRecognition.lang = currentLang === 'hi' ? 'hi-IN' : 'en-US';
-        console.log('[Signova] Mic started | STT lang:', speechRecognition.lang);
-
-        // Explicitly request mic permission first so Chrome doesn't silently block
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(() => {
-                console.log('[Signova] Mic access granted');
-                try {
-                    speechRecognition.start();
-                    showInterim('🎤 Listening...');
-                } catch (e) {
-                    // already running – fine
-                }
-            })
-            .catch(err => {
-                console.error('[Signova] Mic access denied:', err);
-                alert('⚠️ Microphone access is required for Voice → Text. Please allow mic access and try again.');
-                setListening(false); // roll back state
-            });
+        startListening();
     } else {
-        try { speechRecognition.stop(); } catch (e) {}
-        console.log('[Signova] Mic stopped');
+        stopListening();
         if (chatInput) chatInput.value = '';
-        showInterim('');
-        const cap = document.getElementById('local-captions');
-        if (cap) cap.classList.remove('active');
+        clearTimeout(pauseTimer);
     }
 }
-
-// Wire up events only when API is available
-if (speechRecognition) {
-
-    // ── Single live transcript + pause timer ──────────────────────────────────
-    let liveTranscript   = '';   // always holds the latest full spoken text
-    let speechPauseTimer = null;
-
-    // Commit whatever was spoken to the chat stream
-    function flushToChat() {
-        clearTimeout(speechPauseTimer);
-
-        const text = liveTranscript.trim();
-        if (text) {
-            addChatMessage('me', text, true);
-            console.log('✅ SENT:', text);
-        }
-
-        liveTranscript = '';
-        if (chatInput) chatInput.value = '';
-    }
-
-    // ── onresult ─────────────────────────────────────────────────────────────
-    // Capture ALL segments regardless of isFinal — browser-proof approach
-    speechRecognition.onresult = (event) => {
-        let transcript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-        }
-
-        liveTranscript = transcript;
-        console.log('🎤 LIVE:', liveTranscript);
-
-        // Show live typing in the input field
-        if (chatInput) chatInput.value = liveTranscript;
-
-        // Reset pause timer — commit fires only after 1.2s of silence
-        clearTimeout(speechPauseTimer);
-        speechPauseTimer = setTimeout(flushToChat, 1200);
-    };
-
-    // ── onstart ───────────────────────────────────────────────────────────────
-    speechRecognition.onstart = () => {
-        console.log('[Signova] SpeechRecognition started | lang:', speechRecognition.lang);
-    };
-
-    // ── onerror ───────────────────────────────────────────────────────────────
-    speechRecognition.onerror = (event) => {
-        console.error('[Signova] STT Error:', event.error);
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            setListening(false);
-            showInterim('⚠️ Microphone access denied.');
-        }
-        // 'no-speech' is normal — onend will restart
-    };
-
-    // ── onend ─────────────────────────────────────────────────────────────────
-    // Safety flush, then restart if still listening
-    speechRecognition.onend = () => {
-        flushToChat();
-
-        if (isListening) {
-            speechRecognition.lang = currentLang === 'hi' ? 'hi-IN' : 'en-US';
-            try { speechRecognition.start(); } catch (e) {}
-        } else {
-            console.log('[Signova] SpeechRecognition ended');
-            showInterim('');
-        }
-    };
-}
-
 
 // ── Toggle listener ──────────────────────────────────────────────────────────
 if (toggleVoiceText) {
-    toggleVoiceText.addEventListener('change', () => setListening(toggleVoiceText.checked));
+    toggleVoiceText.addEventListener('change', () => syncToggleState(toggleVoiceText.checked));
 }
 
-// Legacy shim so any existing callers of updateSTTState() still work
+// Legacy shim so existing callers continue to work
 function updateSTTState() {
-    if (toggleVoiceText) setListening(toggleVoiceText.checked);
+    if (toggleVoiceText) syncToggleState(toggleVoiceText.checked);
 }
 
 
