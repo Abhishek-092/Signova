@@ -55,7 +55,12 @@
                 <div class="status-dot" id="system-dot"></div>
                 <span id="tracker-status">Initializing System...</span>
             </div>
-            <div class="top-controls">
+            <div class="top-controls flex-gap-sm">
+                <div id="profile-display" class="profile-display hidden">
+                    <img id="profile-avatar-img" src="" alt="Avatar" class="avatar-img">
+                    <span id="profile-name-display" class="orbitron neon-text" style="font-size: 0.85rem;"></span>
+                </div>
+                <button id="account-btn" class="icon-btn" title="Account Profile"><i data-lucide="user"></i></button>
                 <button id="info-btn" class="icon-btn" title="System Info"><i data-lucide="info"></i></button>
             </div>
         </header>
@@ -217,6 +222,30 @@
                 </ul>
             </div>
             <button id="close-modal" class="cyber-btn mt-6">ACKNOWLEDGE</button>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div id="profile-modal" class="cyber-modal hidden">
+        <div class="modal-content glass-panel" style="max-width: 500px;">
+            <h2 class="orbitron neon-text">USER PROFILE</h2>
+            <div class="modal-body profile-form">
+                <div class="form-group">
+                    <label class="orbitron" style="display: block; margin-bottom: 0.5rem; color: #94a3b8; font-size: 0.8rem; letter-spacing: 0.1em;">CALLSIGN / NAME</label>
+                    <input type="text" id="profile-name-input" class="cyber-input" style="width: 100%; box-sizing: border-box;" placeholder="Enter your name...">
+                </div>
+                <div class="form-group mt-4" style="margin-top: 1.5rem;">
+                    <label class="orbitron" style="display: block; margin-bottom: 0.5rem; color: #94a3b8; font-size: 0.8rem; letter-spacing: 0.1em;">AVATAR UPLOAD</label>
+                    <input type="file" id="profile-pic-input" accept="image/*" class="cyber-input" style="width: 100%; box-sizing: border-box; padding: 0.5rem;">
+                </div>
+                <div class="avatar-preview-container hidden" id="avatar-preview-container" style="text-align: center; margin-top: 1.5rem;">
+                    <img id="profile-preview-img" src="" alt="Preview" class="avatar-img-large">
+                </div>
+            </div>
+            <div class="flex-gap mt-6 justify-between">
+                <button id="close-profile-btn" class="cyber-btn control-btn" style="color: #cbd5e1; border-color: #64748b;">CANCEL</button>
+                <button id="save-profile-btn" class="cyber-btn">SAVE DATA</button>
+            </div>
         </div>
     </div>
 

@@ -88,6 +88,87 @@ if (infoBtn && closeModalBtn && infoModal) {
     closeModalBtn.addEventListener('click', () => infoModal.classList.add('hidden'));
 }
 
+// Profile Logic
+const accountBtn = document.getElementById('account-btn');
+const profileModal = document.getElementById('profile-modal');
+const closeProfileBtn = document.getElementById('close-profile-btn');
+const saveProfileBtn = document.getElementById('save-profile-btn');
+const profileNameInput = document.getElementById('profile-name-input');
+const profilePicInput = document.getElementById('profile-pic-input');
+const profilePreviewImg = document.getElementById('profile-preview-img');
+const avatarPreviewContainer = document.getElementById('avatar-preview-container');
+const profileDisplay = document.getElementById('profile-display');
+const profileAvatarImg = document.getElementById('profile-avatar-img');
+const profileNameDisplay = document.getElementById('profile-name-display');
+
+let userProfile = { name: '', image: '' };
+
+function updateProfileUI() {
+    if ((userProfile.name && userProfile.name.trim() !== '') || userProfile.image) {
+        if (profileDisplay) profileDisplay.classList.remove('hidden');
+        if (profileNameDisplay) profileNameDisplay.innerText = userProfile.name || '';
+        if (profileAvatarImg) {
+            profileAvatarImg.src = userProfile.image || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2322c55e" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+        }
+    } else {
+        if (profileDisplay) profileDisplay.classList.add('hidden');
+    }
+}
+
+function loadProfile() {
+    const savedName = localStorage.getItem('signova_userName');
+    const savedImg = localStorage.getItem('signova_profileImage');
+    if (savedName) userProfile.name = savedName;
+    if (savedImg) userProfile.image = savedImg;
+    updateProfileUI();
+}
+
+// Execute load profile
+loadProfile();
+
+if (accountBtn && profileModal) {
+    accountBtn.addEventListener('click', () => {
+        profileNameInput.value = userProfile.name;
+        if (userProfile.image) {
+            profilePreviewImg.src = userProfile.image;
+            avatarPreviewContainer.classList.remove('hidden');
+        } else {
+            avatarPreviewContainer.classList.add('hidden');
+        }
+        profileModal.classList.remove('hidden');
+    });
+    
+    closeProfileBtn.addEventListener('click', () => profileModal.classList.add('hidden'));
+    
+    if (profilePicInput) {
+        profilePicInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (readerEvent) => {
+                    profilePreviewImg.src = readerEvent.target.result;
+                    avatarPreviewContainer.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    saveProfileBtn.addEventListener('click', () => {
+        const newName = profileNameInput.value.trim();
+        const newImgSrc = avatarPreviewContainer.classList.contains('hidden') ? '' : profilePreviewImg.src;
+        
+        userProfile.name = newName;
+        userProfile.image = newImgSrc;
+        
+        localStorage.setItem('signova_userName', newName);
+        localStorage.setItem('signova_profileImage', newImgSrc);
+        
+        updateProfileUI();
+        profileModal.classList.add('hidden');
+    });
+}
+
 // Phrase Sequence Tracking
 const PHRASE_WINDOW_MS = 4000;
 const gestureSequence = { Left: [], Right: [] };
@@ -197,17 +278,22 @@ function updatePrediction(handStr, newGesture) {
         }
         
         if (foundPhrase) {
-            setHandOutput(handStr, foundPhrase, true);
+            let outputPhrase = foundPhrase;
+            if (foundPhrase === "My name is...") {
+                outputPhrase = userProfile.name ? `My name is ${userProfile.name}` : "My name is ...";
+            }
+            
+            setHandOutput(handStr, outputPhrase, true);
             seq.length = 0; // flush sequence on phrase trigger
             
             if (toggleSignVoice && toggleSignVoice.checked) {
-                speakText(foundPhrase);
-                addChatMessage('me', `[Signed Phrase]: ${foundPhrase}`);
+                speakText(outputPhrase);
+                addChatMessage('me', `[Signed Phrase]: ${outputPhrase}`);
             }
             
             // Sync with Peer
             if (dataConn && dataConn.open) {
-                dataConn.send({ type: 'gesture', hand: handStr, text: foundPhrase, isPhrase: true });
+                dataConn.send({ type: 'gesture', hand: handStr, text: outputPhrase, isPhrase: true });
             }
             
             // clear phrase highlight after a delay
